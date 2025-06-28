@@ -1,70 +1,56 @@
 let badProxies = [];
 
-function showLoading(show) {
-    document.getElementById("loading").style.display = show ? "block" : "none";
-}
-
-function checkProxies() {
+function checkProxies(proxiesToCheck = null) {
     const textarea = document.getElementById('proxyInput');
-    const proxies = textarea.value.trim().split('\n').filter(line => line);
+    const allProxies = textarea.value.trim().split('\n').filter(line => line);
+    const proxies = proxiesToCheck || allProxies;
 
     if (proxies.length === 0) {
         alert("Vui lòng nhập ít nhất 1 proxy.");
         return;
     }
 
-    showLoading(true);
+    badProxies = [];  // Reset lại trước khi kiểm tra mới
+    const list = document.getElementById('proxyStatusList');
+    list.innerHTML = '';
+
+    proxies.forEach(proxy => {
+        const li = document.createElement('li');
+        li.className = "list-group-item d-flex justify-content-between align-items-center";
+        li.innerHTML = `<span>${proxy}</span><span class="text-muted">Đang kiểm tra...</span>`;
+        list.appendChild(li);
+    });
+
     fetch('/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proxies: proxies })
+        body: JSON.stringify({ proxies })
     })
     .then(response => response.json())
-    .then(data => {
-        showLoading(false);
-        updateResults(data.working, data.not_working);
+    .then(results => {
+        results.forEach((result, i) => {
+            const li = list.children[i];
+            if (result.working) {
+                li.classList.add("list-group-item-success");
+                li.innerHTML = `<span>${result.proxy}</span>
+                                <span>${result.flag} ${result.country} – ${result.protocol}</span>`;
+            } else {
+                li.classList.add("list-group-item-danger");
+                li.innerHTML = `<span>${result.proxy}</span><span>❌ Không hoạt động</span>`;
+                badProxies.push(result.proxy);  // ← Cập nhật proxy lỗi
+            }
+        });
+    })
+    .catch(error => {
+        alert("Lỗi kiểm tra proxy!");
+        console.error(error);
     });
 }
 
 function recheckBadProxies() {
     if (badProxies.length === 0) {
-        alert("Không có proxy lỗi nào để kiểm tra lại.");
+        alert("Không có proxy lỗi để kiểm tra lại.");
         return;
     }
-
-    showLoading(true);
-    fetch('/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proxies: badProxies })
-    })
-    .then(response => response.json())
-    .then(data => {
-        showLoading(false);
-        updateResults(data.working, data.not_working);
-    });
-}
-
-function updateResults(working, notWorking) {
-    const workingList = document.getElementById('workingList');
-    const notWorkingList = document.getElementById('notWorkingList');
-
-    workingList.innerHTML = '';
-    notWorkingList.innerHTML = '';
-
-    working.forEach(p => {
-        const li = document.createElement('li');
-        li.className = "list-group-item list-group-item-success";
-        li.textContent = p;
-        workingList.appendChild(li);
-    });
-
-    notWorking.forEach(p => {
-        const li = document.createElement('li');
-        li.className = "list-group-item list-group-item-danger";
-        li.textContent = p;
-        notWorkingList.appendChild(li);
-    });
-
-    badProxies = notWorking;
+    checkProxies(badProxies);  // Gọi lại hàm chính với danh sách lỗi
 }
