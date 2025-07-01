@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template
 import requests
 import concurrent.futures
 import os
+import re
+import socket
 
 port = int(os.environ.get("PORT", 5000))
 app = Flask(__name__)
@@ -53,9 +55,47 @@ def get_proxy_location(ip: str) -> str:
     except Exception as e:
         # logger.error(f"Error fetching location for IP {ip}: {e}")
         return 'Unknown location'
-def check_proxy(proxy_str):
+def check_rdp(vps, timeout=5):
+    ip_port = vps.split('/')[0]
+    ip = ip_port.split(":")[0]
+    port = ip_port.split(":")[1]
+    vps_ip = f"{ip}:{port}"
     try:
-        parts = proxy_str.strip().split(':')
+        s = socket.create_connection((ip, port), timeout)
+        s.close()
+        status_vps = True
+        return vps_ip, status_vps
+    except socket.timeout:
+        if port ==22:
+            status_vps = False
+            return vps_ip, status_vps
+        else:
+            try:
+                vps_ip = f"{ip}:3389"
+                s = socket.create_connection((ip, 3389), timeout)
+                s.close()
+                status_vps = True
+                return vps_ip, status_vps
+            except socket.timeout:
+                status_vps = False
+                return vps_ip, status_vps
+            except socket.error as e:
+                status_vps = False
+                return vps_ip, status_vps
+def check_proxy(proxy_str):
+    parts = proxy_str.strip().split(':')
+    if len(parts) ==2:
+        ip, port = parts[0], parts[1]
+        loca,flag = get_proxy_location(ip=ip)
+        vps_result, status_vps_1 =  check_rdp(ip+":"+port)
+        return {
+                    "proxy": vps_result,
+                    "working": status_vps_1,
+                    "protocol": "VPS",
+                    "country": loca,
+                    "flag": flag
+                }
+    else:
         ip, port = parts[0], parts[1]
         auth = ""
         if len(parts) == 4:
@@ -72,10 +112,9 @@ def check_proxy(proxy_str):
         loca,flag = get_proxy_location(ip=ip)
         try:
             r = requests.get("http://ip-api.com/json", proxies=http_proxies, timeout=5)
-            data = r.json()
-            if data["status"] == "success":
-                country_code = data["countryCode"]
-                country_flag = chr(127397 + ord(country_code[0])) + chr(127397 + ord(country_code[1]))
+
+            if r.ok:
+
                 return {
                     "proxy": proxy_str,
                     "working": True,
@@ -87,10 +126,7 @@ def check_proxy(proxy_str):
             pass
         try:
             r = requests.get("http://ip-api.com/json", proxies=socks_proxies, timeout=5)
-            data = r.json()
-            if data["status"] == "success":
-                country_code = data["countryCode"]
-                country_flag = chr(127397 + ord(country_code[0])) + chr(127397 + ord(country_code[1]))
+            if r.ok:
                 return {
                     "proxy": proxy_str,
                     "working": True,
@@ -107,14 +143,6 @@ def check_proxy(proxy_str):
         "country": None,
         "flag": ""
         }
-    except:
-        return {
-            "proxy": proxy_str,
-            "working": False,
-            "protocol": "HTTP",
-            "country": None,
-            "flag": ""
-        }
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -124,8 +152,23 @@ def check():
     data = request.json
     proxy_list = data.get("proxies", [])
     results = []
+    extracted = []
+    pattern_full = re.compile(r"(\d{1,3}(?:\.\d{1,3}){3}:\d+:[^:\s/]+:[^:\s/]+)")
+
+    # Regex tìm IP:PORT ở đầu chuỗi (nếu không có user:pass)
+    pattern_basic = re.compile(r"(\d{1,3}(?:\.\d{1,3}){3}:\d+)")
+    for proxy in proxy_list:
+        match = pattern_full.search(proxy)
+        if match:
+            extracted.append(match.group(1))
+        else:
+            match = pattern_basic.search(proxy)
+            if match:
+                extracted.append(match.group(1))
+    result_proxy = "\n".join(extracted)
+    final_proxy = result_proxy.strip().split('\n')
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-        futures = [executor.submit(check_proxy, p) for p in proxy_list]
+        futures = [executor.submit(check_proxy, p) for p in final_proxy]
         for f in concurrent.futures.as_completed(futures):
             results.append(f.result())
     return jsonify(results)
