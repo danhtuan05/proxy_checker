@@ -18,16 +18,17 @@
 
 <body>
     <div class="container py-4">
-        <h2 class="text-center text-primary mb-4">🔍 Kiểm Tra Proxy Private</h2>
+        <h2 class="text-center text-primary mb-4">🔍 Kiểm Tra VPS/Proxy</h2>
 
         <div class="mb-3">
-            <label for="proxyInput" class="form-label">Nhập danh sách proxy (mỗi dòng 1 proxy dạng IP:PORT:USER:PASS):</label>
-            <textarea id="proxyInput" class="form-control" rows="6" placeholder="Ví dụ:\n123.123.123.123:8080:user:pass\n..."></textarea>
+            <label for="proxyInput" class="form-label">Nhập danh sách VPS/proxy (Định dạng IP:PORT:USER:PASS hoặc IP:PORT):</label>
+            <textarea id="proxyInput" class="form-control" rows="6" placeholder="Ví dụ:123.123.123.123:123"></textarea>
         </div>
 
-        <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-3">
+        <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-3 flex-wrap">
             <button class="btn btn-success me-md-2" onclick="checkProxies()">✅ Kiểm tra</button>
-            <button class="btn btn-warning" onclick="recheckBadProxies()">🔁 Kiểm tra lại lỗi</button>
+            <button class="btn btn-warning me-md-2" onclick="recheckBadProxies()">🔁 Kiểm tra lại lỗi</button>
+            <button class="btn btn-danger" onclick="clearProxyInput()">🗑️ Xoá danh sách</button>
         </div>
 
         <div id="loading" class="text-center mb-3" style="display: none;">

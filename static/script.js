@@ -10,14 +10,20 @@ function checkProxies(proxiesToCheck = null) {
         return;
     }
 
-    badProxies = [];  // Reset lại trước khi kiểm tra mới
+    badProxies = [];  // reset lại danh sách lỗi
+
     const list = document.getElementById('proxyStatusList');
     list.innerHTML = '';
 
     proxies.forEach(proxy => {
         const li = document.createElement('li');
-        li.className = "list-group-item d-flex justify-content-between align-items-center";
-        li.innerHTML = `<span>${proxy}</span><span class="text-muted">Đang kiểm tra...</span>`;
+        li.className = "list-group-item";
+        li.innerHTML = `
+            <div class="w-100">
+                <div class="fw-bold text-break">${proxy}</div>
+                <div class="text-muted small">Đang kiểm tra...</div>
+            </div>
+        `;
         list.appendChild(li);
     });
 
@@ -31,21 +37,33 @@ function checkProxies(proxiesToCheck = null) {
         results.forEach((result, i) => {
             const li = list.children[i];
             if (result.working) {
+                li.classList.remove("list-group-item-danger");
                 li.classList.add("list-group-item-success");
-                li.innerHTML = `<span>${result.proxy}</span>
-                                <span>${result.flag} ${result.country} – ${result.protocol}</span>`;
+                li.innerHTML = `
+                    <div class="w-100">
+                        <div class="fw-bold text-break">${result.proxy}</div>
+                        <div class="text-muted small">${result.flag} ${result.country} – ${result.protocol}</div>
+                    </div>
+                `;
             } else {
+                li.classList.remove("list-group-item-success");
                 li.classList.add("list-group-item-danger");
-                li.innerHTML = `<span>${result.proxy}</span><span>❌ Không hoạt động</span>`;
-                badProxies.push(result.proxy);  // ← Cập nhật proxy lỗi
+                li.innerHTML = `
+                    <div class="w-100">
+                        <div class="fw-bold text-break">${result.proxy}</div>
+                        <div class="text-danger small">❌ Không hoạt động</div>
+                    </div>
+                `;
+                badProxies.push(result.proxy);
             }
         });
     })
     .catch(error => {
-        alert("Lỗi kiểm tra proxy!");
+        alert("Lỗi khi kiểm tra proxy.");
         console.error(error);
     });
 }
+
 
 function recheckBadProxies() {
     if (badProxies.length === 0) {
@@ -53,4 +71,7 @@ function recheckBadProxies() {
         return;
     }
     checkProxies(badProxies);  // Gọi lại hàm chính với danh sách lỗi
+}
+function clearProxyInput() {
+    document.getElementById('proxyInput').value = '';
 }
